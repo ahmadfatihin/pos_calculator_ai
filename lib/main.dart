@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_calculator_ai/app_pallete.dart';
 import 'package:pos_calculator_ai/cart_screen.dart';
+import 'package:pos_calculator_ai/history_screen.dart';
 
 void main() => runApp(const PosApp());
 
@@ -74,6 +75,27 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
 
   // Cart state
   final List<CartItem> _cart = [];
+
+  // Navigation handling
+  void _onNavigationTapped(int index) {
+    switch (index) {
+      case 0:
+        // Already on Calculator screen, do nothing
+        break;
+      case 1:
+        // Navigate to History screen
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (context) => const HistoryScreen()));
+        break;
+      case 2:
+        // Navigate to Settings screen (placeholder)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings screen coming soon!')),
+        );
+        break;
+    }
+  }
 
   // Subtotal cart (tidak termasuk pending terms)
   int get _cartSubtotal => _cart.fold<int>(0, (sum, it) => sum + it.price);
@@ -190,14 +212,21 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
       bottomNavigationBar: NavigationBar(
         backgroundColor: Colors.white,
         selectedIndex: 0,
+        onDestinationSelected: _onNavigationTapped,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.calculate_outlined),
+            selectedIcon: Icon(Icons.calculate),
             label: 'Calculator',
           ),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
+          NavigationDestination(
+            icon: Icon(Icons.history),
+            selectedIcon: Icon(Icons.history),
+            label: 'History',
+          ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
             label: 'Settings',
           ),
         ],
