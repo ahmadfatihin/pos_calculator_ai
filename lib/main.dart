@@ -39,7 +39,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _display = '0';
   int _total = 0;
 
-  final List<String> itemChips = ['Indomie Telor', 'Jumbo', 'Nasi Bakar'];
+  final List<String> _pickedItems = [];
+
+  static const List<_CatalogItem> _catalog = [
+    _CatalogItem('Indomie', 5000),
+    _CatalogItem('Nasi', 7000),
+    _CatalogItem('Ice tea', 4000),
+    _CatalogItem('Hot tea', 3000),
+    _CatalogItem('Indomie Telor', 12000),
+    _CatalogItem('Jumbo', 15000),
+    _CatalogItem('Nasi Bakar', 18000),
+  ];
+
+  List<_CatalogItem> _suggestions = const [];
+
+  void _syncSuggestions() {
+    final v = _parseDisplay();
+    if (v <= 0) {
+      _suggestions = const [];
+    } else {
+      _suggestions = _catalog
+          .where((c) => c.price == v)
+          .toList(growable: false);
+    }
+  }
+
+  int _parseDisplay() => int.tryParse(_display.replaceAll('.', '')) ?? 0;
 
   void _tap(String key) {
     setState(() {
@@ -47,30 +72,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         case 'CLEAR':
           _display = '0';
           _total = 0;
+          _pickedItems.clear();
+          _suggestions = const [];
           return;
         case '+':
-          _total += int.tryParse(_display.replaceAll('.', '')) ?? 0;
+          _total += _parseDisplay();
           _display = '0';
+          _syncSuggestions();
           return;
         case '-':
-          _total -= int.tryParse(_display.replaceAll('.', '')) ?? 0;
+          _total -= _parseDisplay();
           if (_total < 0) _total = 0;
           _display = '0';
+          _syncSuggestions();
           return;
         case '%':
-          final v = int.tryParse(_display.replaceAll('.', '')) ?? 0;
+          final v = _parseDisplay();
           _display = _format(v ~/ 100);
+          _syncSuggestions();
           return;
         case '/':
         case 'X':
-          // Placeholder for MVP
           return;
         case ',':
-          // Thousands separator shortcut (visual only for MVP)
           return;
         case '.000':
-          final v = int.tryParse(_display.replaceAll('.', '')) ?? 0;
+          final v = _parseDisplay();
           _display = _format(v * 1000);
+          _syncSuggestions();
           return;
         case '0':
         case '1':
@@ -87,7 +116,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           } else {
             _display += key;
           }
-          _display = _format(int.tryParse(_display.replaceAll('.', '')) ?? 0);
+          _display = _format(_parseDisplay());
+          _syncSuggestions();
           return;
       }
     });
@@ -95,11 +125,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _addItem() {
     setState(() {
-      final v = int.tryParse(_display.replaceAll('.', '')) ?? 0;
+      final v = _parseDisplay();
       if (v > 0) {
         _total += v;
-        if (byItem) itemChips.add('Item ${itemChips.length + 1}');
         _display = '0';
+        _syncSuggestions();
       }
     });
   }
@@ -107,9 +137,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _clearBill() => setState(() {
     _display = '0';
     _total = 0;
-    itemChips
-      ..clear()
-      ..addAll(['Indomie Telor', 'Jumbo', 'Nasi Bakar']);
+    _pickedItems.clear();
+    _suggestions = const [];
   });
 
   static String _format(int v) {
@@ -174,7 +203,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top totals & main display
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -199,25 +227,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final it in itemChips)
+                    for (final c in _suggestions)
                       InputChip(
-                        label: Text(it),
-                        onPressed: () {},
-                        onDeleted: () => setState(() => itemChips.remove(it)),
-                        deleteIcon: const Icon(Icons.add, size: 18),
+                        label: Text('${c.name}  +'),
+                        onPressed: () {
+                          setState(() {
+                            _total += c.price;
+                            _pickedItems.add(c.name);
+                          });
+                        },
                       ),
                   ],
                 )
               else
                 const SizedBox(height: 8),
               const SizedBox(height: 8),
-
-              // Keypad
+              if (_pickedItems.isNotEmpty) ...[
+                Wrap(
+                  spacing: 6,
+                  children: _pickedItems
+                      .map((e) => Chip(label: Text(e)))
+                      .toList(),
+                ),
+                const SizedBox(height: 8),
+              ],
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, c) {
-                    final btnH =
-                        (c.maxHeight - 24) / 5; // ~5 rows (spacing included)
+                    final btnH = (c.maxHeight - 24) / 5;
                     return Column(
                       children: [
                         _keyRow([
@@ -283,7 +320,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                   },
                 ),
               ),
-
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -391,6 +427,12 @@ class _KeyButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CatalogItem {
+  final String name;
+  final int price;
+  const _CatalogItem(this.name, this.price);
 }
 
 class _SideDrawer extends StatelessWidget {
