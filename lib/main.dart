@@ -63,6 +63,9 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   // Cart state
   final List<CartItem> _cart = [];
 
+  // Subtotal cart (tidak termasuk pending terms)
+  int get _cartSubtotal => _cart.fold<int>(0, (sum, it) => sum + it.price);
+
   /* --------------------------- Formatting helpers -------------------------- */
 
   int _parse(String s) => int.tryParse(s.replaceAll('.', '')) ?? 0;
@@ -169,6 +172,7 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   Widget build(BuildContext context) {
     final inputVal = _parse(_display);
     final matched = _products.where((p) => p.price == inputVal).toList();
+    final subtotal = _cartSubtotal; // dipakai untuk label Pay
 
     return Scaffold(
       bottomNavigationBar: NavigationBar(
@@ -284,7 +288,7 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                         borderRadius: BorderRadius.circular(24),
                                       ),
                                     ),
-                                    onPressed: _cart.isNotEmpty
+                                    onPressed: subtotal > 0
                                         ? () => Navigator.of(context).push(
                                             MaterialPageRoute(
                                               builder: (_) => CartScreen(
@@ -295,9 +299,11 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                             ),
                                           )
                                         : null,
-                                    child: const Text(
-                                      'Pay',
-                                      style: TextStyle(
+                                    child: Text(
+                                      subtotal > 0
+                                          ? 'Pay  Rp ${formatInt(subtotal)}'
+                                          : 'Pay',
+                                      style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),
