@@ -99,14 +99,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const SizedBox(height: 16),
             _buildDateFilterPills(),
 
-            // Date Navigation
-            const SizedBox(height: 12),
-            _buildDateNavigation(),
-
-            // Download Report Button
-            const SizedBox(height: 16),
-            _buildDownloadButton(),
-
             // Transaction List
             Expanded(child: _buildTransactionList(groupedTransactions)),
 
@@ -233,71 +225,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateNavigation() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Left arrow
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppPalette.green800,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          // Date options
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _dateOption('Today', false),
-                _dateOption('7 Days', true),
-                _dateOption('30 Days', false),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Right arrow
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppPalette.green800,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.arrow_forward, color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _dateOption(String label, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.white : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected ? AppPalette.green800 : Colors.grey.shade300,
-          width: isSelected ? 2 : 1,
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? AppPalette.green800 : Colors.grey.shade600,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-          fontSize: 14,
         ),
       ),
     );
