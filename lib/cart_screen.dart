@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:pos_calculator_ai/app_pallete.dart';
 import 'package:pos_calculator_ai/main.dart';
+import 'package:pos_calculator_ai/payment_screen.dart';
 
 /* --------------------------------- Cart ----------------------------------- */
 /* CART SCREEN */
@@ -171,7 +172,17 @@ class _CartScreenState extends State<CartScreen> {
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    onPressed: _subtotal == 0 ? null : () {},
+                    onPressed: _subtotal == 0
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => PaymentScreen(
+                                  items: items,
+                                ), // <-- kirim list yang sama
+                              ),
+                            );
+                          },
                     child: const Text(
                       'Payment',
                       style: TextStyle(

@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'payment_success_screen.dart';
+import 'package:flutter/material.dart';
+import 'app_pallete.dart';
+import 'main.dart';
+import 'payment_success_screen.dart';
 
+/// Payment screen that consumes the real cart items (CartItem) from CartScreen.
+/// It groups identical items (same name & price), shows the summary,
+/// lets user choose a method (QRIS / Cash), and simulates processing.
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({Key? key}) : super(key: key);
+  const PaymentScreen({super.key, required this.items});
+
+  /// The same instance of the cart list passed from CartScreen.
+  final List<CartItem> items;
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -13,53 +23,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String _selectedPaymentMethod = '';
   bool _isProcessingPayment = false;
 
-  // Dummy data for cart items using main.dart Product class
-  final List<Map<String, dynamic>> _dummyCartItems = [
-    {
-      'product': Product(
-        'Nasi Goreng Spesial',
-        25000,
-        'https://picsum.photos/seed/nasigoreng/200',
-      ),
-      'quantity': 2,
-    },
-    {
-      'product': Product(
-        'Es Teh Manis',
-        8000,
-        'https://picsum.photos/seed/esteh/200',
-      ),
-      'quantity': 3,
-    },
-    {
-      'product': Product(
-        'Ayam Bakar',
-        35000,
-        'https://picsum.photos/seed/ayam/200',
-      ),
-      'quantity': 1,
-    },
-  ];
+  // Format helper reused across screens
+  String _f(int amount) => QuickSaleScreenState.formatInt(amount);
 
-  // Calculate total amount from dummy data
-  int get _totalAmount {
-    return _dummyCartItems.fold<int>(0, (total, item) {
-      final product = item['product'] as Product;
-      final quantity = item['quantity'] as int;
-      return total + (product.price * quantity);
-    });
-  }
-
-  String _formatCurrency(int amount) {
-    final s = amount.toString();
-    final buf = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final idx = s.length - i;
-      buf.write(s[i]);
-      if (idx > 1 && idx % 3 == 1) buf.write('.');
+  /// Collapse identical items into lines with quantity.
+  /// Key = name|price
+  List<_Line> get _lines {
+    final map = <String, _Line>{};
+    for (final it in widget.items) {
+      final key = '${it.name}|${it.price}';
+      map.update(key, (l) {
+        l.qty++;
+        return l;
+      }, ifAbsent: () => _Line(it.name, it.price, 1));
     }
-    return buf.toString();
+    return map.values.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
+
+  int get _totalAmount => _lines.fold<int>(0, (s, l) => s + l.price * l.qty);
 
   String _generateTransactionId() {
     final now = DateTime.now();
@@ -77,83 +59,65 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    setState(() {
-      _isProcessingPayment = true;
-    });
+    setState(() => _isProcessingPayment = true);
 
-    // Simulate payment processing time - reduced to 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        // Navigate to payment success screen instead of showing dialog
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => PaymentSuccessScreen(
-              totalAmount: _totalAmount,
-              changeAmount: 0, // No change for exact payment
-              paymentMethod: _selectedPaymentMethod,
-              transactionId: _generateTransactionId(),
-            ),
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(
+            totalAmount: _totalAmount,
+            changeAmount: 0,
+            paymentMethod: _selectedPaymentMethod,
+            transactionId: _generateTransactionId(),
           ),
-        );
-      }
+        ),
+      );
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: AppPalette.bg,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
+            // Header with gradient to match the app palette
             Container(
-              decoration: const BoxDecoration(color: Color(0xFF2E7D32)),
+              width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              child: Column(
+              decoration: const BoxDecoration(
+                gradient: AppPalette.headerGradient,
+              ),
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        _isProcessingPayment ? 'Processing Payment' : 'Payment',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isProcessingPayment ? 'Processing Payment' : 'Payment',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
             ),
 
             Expanded(
-              child: _isProcessingPayment
-                  ? _buildPaymentProcessingView()
-                  : _buildPaymentFormView(),
+              child: _isProcessingPayment ? _buildProcessing() : _buildForm(),
             ),
 
-            // Bottom Payment Section
             if (!_isProcessingPayment)
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -5),
-                    ),
-                  ],
+                  color: AppPalette.surface,
+                  boxShadow: AppPalette.shadow,
                 ),
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -165,15 +129,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           'Total Payment',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey,
+                            color: AppPalette.textMuted,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
-                          'Rp ${_formatCurrency(_totalAmount)}',
+                          'Rp ${_f(_totalAmount)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
+                            color: AppPalette.textPrimary,
                           ),
                         ),
                       ],
@@ -183,7 +148,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
+                          backgroundColor: AppPalette.green600,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(24),
@@ -191,7 +156,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         ),
                         onPressed: _processPayment,
                         child: Text(
-                          'Pay Rp ${_formatCurrency(_totalAmount)}',
+                          'Pay Rp ${_f(_totalAmount)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -209,24 +174,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _buildPaymentFormView() {
+  // ----------------------------- Views ---------------------------------
+
+  Widget _buildForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Purchase Summary
+          // Purchase summary
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppPalette.surface,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+              boxShadow: AppPalette.shadow,
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -237,37 +198,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppPalette.textPrimary,
                   ),
                 ),
-                const SizedBox(height: 16),
-                ..._dummyCartItems.map((item) {
-                  final product = item['product'] as Product;
-                  final quantity = item['quantity'] as int;
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
+                const SizedBox(height: 12),
+                ..._lines.map(
+                  (l) => Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7F8F7),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.all(12),
                     child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            product.image,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                color: Colors.grey[300],
-                                width: 48,
-                                height: 48,
-                                child: const Icon(Icons.fastfood),
-                              );
-                            },
+                        CircleAvatar(
+                          backgroundColor: AppPalette.green400.withOpacity(.15),
+                          child: Text(
+                            l.name.isNotEmpty ? l.name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              color: AppPalette.green800,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -276,46 +228,47 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                product.name,
+                                l.name,
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
+                                  color: AppPalette.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Rp ${_formatCurrency(product.price)} x $quantity',
+                                'Rp ${_f(l.price)} x ${l.qty}',
                                 style: const TextStyle(
                                   fontSize: 13,
-                                  color: Colors.green,
+                                  color: AppPalette.green800,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        Text(
+                          'Rp ${_f(l.price * l.qty)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: AppPalette.textPrimary,
+                          ),
+                        ),
                       ],
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 16),
 
-          // Payment Method
+          // Payment methods
           Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppPalette.surface,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 3,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+              boxShadow: AppPalette.shadow,
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -326,37 +279,30 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppPalette.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
-                      child: _buildPaymentMethod(
-                        icon: null,
-                        imageUrl:
-                            'https://images.seeklogo.com/logo-png/39/1/quick-response-code-indonesia-standard-qris-logo-png_seeklogo-391791.png',
+                      child: _paymentMethodTile(
                         label: 'QRIS',
                         isSelected: _selectedPaymentMethod == 'QRIS',
-                        onTap: () {
-                          setState(() {
-                            _selectedPaymentMethod = 'QRIS';
-                          });
-                        },
+                        onTap: () =>
+                            setState(() => _selectedPaymentMethod = 'QRIS'),
+                        imageUrl:
+                            'https://images.seeklogo.com/logo-png/39/1/quick-response-code-indonesia-standard-qris-logo-png_seeklogo-391791.png',
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildPaymentMethod(
+                      child: _paymentMethodTile(
                         icon: Icons.payments_outlined,
                         label: 'Cash',
                         isSelected: _selectedPaymentMethod == 'Cash',
-                        onTap: () {
-                          setState(() {
-                            _selectedPaymentMethod = 'Cash';
-                          });
-                        },
+                        onTap: () =>
+                            setState(() => _selectedPaymentMethod = 'Cash'),
                       ),
                     ),
                   ],
@@ -369,7 +315,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _buildPaymentProcessingView() {
+  Widget _buildProcessing() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -378,15 +324,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppPalette.surface,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+                boxShadow: AppPalette.shadow,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
@@ -395,47 +335,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   width: 300,
                   height: 300,
                   fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Container(
-                      width: 300,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Center(
-                        child: CircularProgressIndicator(
-                          color: Color(0xFF2E7D32),
-                        ),
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 300,
-                      height: 300,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.qr_code, size: 80, color: Colors.grey),
-                          SizedBox(height: 16),
-                          Text(
-                            'QR Code',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 300,
+                    height: 300,
+                    color: Colors.grey[200],
+                    child: const Icon(
+                      Icons.qr_code,
+                      size: 80,
+                      color: Colors.grey,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -445,16 +354,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppPalette.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Rp ${_formatCurrency(_totalAmount)}',
+              'Rp ${_f(_totalAmount)}',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2E7D32),
+                color: AppPalette.green800,
               ),
             ),
             const SizedBox(height: 16),
@@ -466,13 +375,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Color(0xFF2E7D32),
+                    color: AppPalette.green800,
                   ),
                 ),
                 SizedBox(width: 12),
                 Text(
                   'Waiting for payment...',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: TextStyle(fontSize: 14, color: AppPalette.textMuted),
                 ),
               ],
             ),
@@ -482,8 +391,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
-  Widget _buildPaymentMethod({
-    required IconData? icon,
+  Widget _paymentMethodTile({
+    IconData? icon,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
@@ -494,53 +403,53 @@ class _PaymentScreenState extends State<PaymentScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF7F8F7) : Colors.white,
+          color: isSelected ? const Color(0xFFF7F8F7) : AppPalette.surface,
           border: Border.all(
-            color: isSelected ? const Color(0xFF2E7D32) : Colors.grey[300]!,
+            color: isSelected ? AppPalette.green800 : Colors.grey[300]!,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF2E7D32).withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: AppPalette.green800.withOpacity(.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
-                    blurRadius: 2,
-                    offset: const Offset(1, 1),
+                    color: Colors.black.withOpacity(.04),
+                    blurRadius: 3,
+                    offset: const Offset(0, 2),
                   ),
                 ],
         ),
         child: Column(
           children: [
             if (imageUrl != null)
-              Container(
+              SizedBox(
                 width: 40,
                 height: 40,
                 child: Image.network(
                   imageUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Icon(
-                      Icons.qr_code_scanner,
-                      size: 40,
-                      color: isSelected
-                          ? const Color(0xFF2E7D32)
-                          : Colors.black87,
-                    );
-                  },
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.qr_code_scanner,
+                    size: 40,
+                    color: isSelected
+                        ? AppPalette.green800
+                        : AppPalette.textPrimary,
+                  ),
                 ),
               )
             else if (icon != null)
               Icon(
                 icon,
                 size: 40,
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.black87,
+                color: isSelected
+                    ? AppPalette.green800
+                    : AppPalette.textPrimary,
               ),
             const SizedBox(height: 8),
             Text(
@@ -548,7 +457,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF2E7D32) : Colors.black87,
+                color: isSelected
+                    ? AppPalette.green800
+                    : AppPalette.textPrimary,
               ),
             ),
           ],
@@ -556,4 +467,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       ),
     );
   }
+}
+
+/// Simple line model for grouped cart items.
+class _Line {
+  _Line(this.name, this.price, this.qty);
+  final String name;
+  final int price;
+  int qty;
 }

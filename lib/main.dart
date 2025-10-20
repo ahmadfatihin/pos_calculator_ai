@@ -294,42 +294,50 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                             SliverToBoxAdapter(
                               child: Padding(
                                 padding: const EdgeInsets.only(top: 16),
-                                child: SizedBox(
-                                  height: 56,
-                                  width: double.infinity,
-                                  child: FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      backgroundColor: const Color(0xFF4CAF50),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(24),
-                                      ),
-                                    ),
-                                    onPressed: subtotal > 0
-                                        ? () async => await Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) => CartScreen(
-                                                items:
-                                                    _cart, // <-- pass the SAME list
-                                                onChanged: () => setState(
-                                                  () {},
-                                                ), // <-- parent rebuilds subtotal/Pay
+                                child: GestureDetector(
+                                  onTap: subtotal > 0
+                                      ? () async =>
+                                            await Navigator.of(context).push(
+                                              MaterialPageRoute(
+                                                builder: (_) => CartScreen(
+                                                  items:
+                                                      _cart, // pass the SAME list reference
+                                                  onChanged: () =>
+                                                      setState(() {}),
+                                                ),
                                               ),
-                                            ),
-                                          )
-                                        : null,
+                                            )
+                                      : null,
+                                  child: Container(
+                                    height: 56,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      gradient: AppPalette.headerGradient,
+                                      borderRadius: BorderRadius.circular(28),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.15),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    alignment: Alignment.center,
                                     child: Text(
                                       subtotal > 0
                                           ? 'Pay  Rp ${formatInt(subtotal)}'
                                           : 'Pay',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
                                         color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
+
                             const SliverToBoxAdapter(
                               child: SizedBox(height: 20),
                             ),
