@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:pos_calculator_ai/app_pallete.dart';
-import 'package:pos_calculator_ai/transaction_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -11,55 +10,49 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = '7 Days';
-  List<Transaction> _allTransactions = [];
-  List<Transaction> _filteredTransactions = [];
-  bool _isLoading = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadTransactions();
-  }
-
-  Future<void> _loadTransactions() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final transactions = await TransactionService.loadTransactions();
-      setState(() {
-        _allTransactions = transactions;
-        _filteredTransactions = TransactionService.filterTransactions(
-            transactions, _selectedFilter);
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading transactions: $e')),
-      );
-    }
-  }
+  // Sample transaction data
+  final List<Transaction> _transactions = [
+    Transaction(
+      id: 'WARM10102025-00003',
+      time: '10.21.11',
+      total: 17000,
+      paymentMethod: 'QRIS',
+      date: DateTime(2025, 2, 5),
+    ),
+    Transaction(
+      id: 'WARM10102025-00002',
+      time: '08.30.29',
+      total: 17000,
+      paymentMethod: 'QRIS',
+      date: DateTime(2025, 2, 5),
+    ),
+    Transaction(
+      id: 'WARM10102025-00001',
+      time: '14.30.12',
+      total: 17000,
+      paymentMethod: 'QRIS',
+      date: DateTime(2025, 2, 5),
+    ),
+  ];
 
   void _onFilterChanged(String filter) {
     setState(() {
       _selectedFilter = filter;
-      _filteredTransactions =
-          TransactionService.filterTransactions(_allTransactions, filter);
     });
   }
 
   void _onNavigationTapped(int index) {
     switch (index) {
       case 0:
+        // Navigate back to Calculator screen
         Navigator.of(context).pop();
         break;
       case 1:
+        // Already on History screen, do nothing
         break;
       case 2:
+        // Navigate to Settings screen (placeholder)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Settings screen coming soon!')),
         );
@@ -69,9 +62,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final groupedTransactions = _groupTransactionsByDate(_filteredTransactions);
-    final stats =
-        TransactionService.getFilterStats(_allTransactions, _selectedFilter);
+    // Group transactions by date
+    final groupedTransactions = _groupTransactionsByDate(_transactions);
 
     return Scaffold(
       backgroundColor: AppPalette.bg,
@@ -100,22 +92,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(stats),
+            // Header
+            _buildHeader(),
+
+            // Date Filter Pills
             const SizedBox(height: 16),
             _buildDateFilterPills(),
-            const SizedBox(height: 16),
-            _buildStatsCards(stats),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppPalette.green800,
-                      ),
-                    )
-                  : _filteredTransactions.isEmpty
-                      ? _buildEmptyState()
-                      : _buildTransactionList(groupedTransactions),
-            ),
+
+            // Transaction List
+            Expanded(child: _buildTransactionList(groupedTransactions)),
+
+            // Bottom Download Button
             _buildDownloadButton(),
             const SizedBox(height: 16),
           ],
@@ -124,7 +111,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildHeader(Map<String, dynamic> stats) {
+  Widget _buildHeader() {
     return Container(
       decoration: const BoxDecoration(
         gradient: AppPalette.headerGradient,
@@ -134,208 +121,61 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(.12),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: const Row(
-                    children: [
-                      Icon(
-                        Icons.shopping_cart_outlined,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                      SizedBox(width: 12),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Mode',
-                            style:
-                                TextStyle(color: Colors.white70, fontSize: 12),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Quick Sale',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                height: 64,
-                width: 64,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.shopping_cart,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.15),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  _selectedFilter,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Rp ${_formatPrice(stats['totalAmount'])}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsCards(Map<String, dynamic> stats) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
+          // Mode pill
           Expanded(
             child: Container(
-              padding: const EdgeInsets.all(16),
+              height: 64,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                color: Colors.white.withOpacity(.12),
+                borderRadius: BorderRadius.circular(20),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    '${stats['transactionCount']}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppPalette.green800,
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: const [
+                  Icon(
+                    Icons.shopping_cart_outlined,
+                    color: Colors.white,
+                    size: 28,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Transactions',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
+                  SizedBox(width: 12),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mode',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Quick Sale',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    'Rp ${_formatPrice(stats['averageAmount'])}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppPalette.green800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Average',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ],
-              ),
+          // Cart pill
+          Container(
+            height: 64,
+            width: 64,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(.12),
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.receipt_long_outlined,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No transactions found',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try selecting a different time period',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
+            child: const Icon(
+              Icons.shopping_cart,
+              color: Colors.white,
+              size: 28,
             ),
           ),
         ],
@@ -398,18 +238,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         height: 50,
         child: OutlinedButton(
           onPressed: () {
-            final stats = TransactionService.getFilterStats(
-                _allTransactions, _selectedFilter);
+            // Handle download
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Downloading $_selectedFilter report: ${stats['transactionCount']} transactions, Rp ${_formatPrice(stats['totalAmount'])}',
-                ),
-              ),
+              const SnackBar(content: Text('Downloading report...')),
             );
           },
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: AppPalette.green800, width: 2),
+            side: BorderSide(color: AppPalette.green800, width: 2),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -437,6 +272,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
         return Column(
           children: [
+            // Date divider
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
@@ -457,6 +293,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
             ),
+            // Transactions
             ...transactions.map(
               (transaction) => _buildTransactionCard(transaction),
             ),
@@ -526,23 +363,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 'Payment Method',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: transaction.paymentMethod == 'QRIS'
-                      ? AppPalette.green800.withOpacity(0.1)
-                      : Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  transaction.paymentMethod,
-                  style: TextStyle(
-                    color: transaction.paymentMethod == 'QRIS'
-                        ? AppPalette.green800
-                        : Colors.blue.shade700,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
+              Text(
+                transaction.paymentMethod,
+                style: const TextStyle(
+                  color: AppPalette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
                 ),
               ),
             ],
@@ -567,17 +393,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       }
       grouped[dateKey]!.add(transaction);
     }
-
-    // Sort by date (newest first)
-    final sortedKeys = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
-    final sortedGrouped = <DateTime, List<Transaction>>{};
-    for (final key in sortedKeys) {
-      // Sort transactions within each day by time (newest first)
-      grouped[key]!.sort((a, b) => b.time.compareTo(a.time));
-      sortedGrouped[key] = grouped[key]!;
-    }
-
-    return sortedGrouped;
+    return grouped;
   }
 
   String _formatDate(DateTime date) {
@@ -608,4 +424,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     return b.toString();
   }
+}
+
+class Transaction {
+  final String id;
+  final String time;
+  final int total;
+  final String paymentMethod;
+  final DateTime date;
+
+  Transaction({
+    required this.id,
+    required this.time,
+    required this.total,
+    required this.paymentMethod,
+    required this.date,
+  });
 }
