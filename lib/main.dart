@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_calculator_ai/app_pallete.dart';
 import 'package:pos_calculator_ai/cart_screen.dart';
 
 void main() => runApp(const PosApp());
@@ -13,9 +14,20 @@ class PosApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF2E7D32),
-        scaffoldBackgroundColor: Colors.grey[50],
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppPalette.green800,
+          brightness: Brightness.light,
+        ),
+        scaffoldBackgroundColor: AppPalette.bg,
         fontFamily: 'Montserrat',
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: AppPalette.textPrimary),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppPalette.green800,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       ),
       home: const QuickSaleScreen(),
     );
@@ -331,7 +343,6 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
 }
 
 /* -------------------------------- Header ---------------------------------- */
-
 class _Header extends StatelessWidget {
   const _Header({required this.amountText, required this.onOpenCart});
 
@@ -342,7 +353,7 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF2E7D32),
+        gradient: AppPalette.headerGradient,
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(24),
           bottomRight: Radius.circular(24),
@@ -350,40 +361,82 @@ class _Header extends StatelessWidget {
       ),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(Icons.shopping_cart_outlined, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text('Mode', style: TextStyle(color: Colors.white70)),
-                ],
+              // Mode pill
+              Expanded(
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: const [
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      SizedBox(width: 12),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mode',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Quick Sale',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              IconButton(
-                icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                onPressed: onOpenCart,
+              const SizedBox(width: 12),
+              // Cart pill
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onOpenCart,
+                child: Container(
+                  height: 64,
+                  width: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Icon(
+                    Icons.shopping_cart,
+                    color: Colors.white,
+                    size: 28,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          const Text(
-            'Quick Sale',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          // Amount card
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              color: AppPalette.surface,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: AppPalette.shadow,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -392,16 +445,17 @@ class _Header extends StatelessWidget {
                   'Enter Amount',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey,
+                    color: AppPalette.textMuted,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   amountText,
                   style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: AppPalette.textPrimary,
                   ),
                 ),
               ],
@@ -490,11 +544,11 @@ class _Keypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Uniform keys: 5 rows × 4 columns (last column = operators)
+    // Softer keys to match the header
     const white = Colors.white;
-    final fn = const Color(0xFFE8ECEF);
-    final op = const Color(0xFFD7E0EA);
-    const red = Color(0xFFF36A6A);
+    final fn = const Color(0xFFEFF3F6); // function keys (%, /)
+    final op = const Color(0xFFDDE6EF); // right operator column
+    const red = AppPalette.danger;
     const gap = 8.0;
     const keyH = 58.0;
 
