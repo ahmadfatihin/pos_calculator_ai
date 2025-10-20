@@ -2,25 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:pos_calculator_ai/main.dart';
 
-/* ====================== CART SCREEN ====================== */
-class CartScreen extends StatelessWidget {
-  final List<CartItem> items;
-  const CartScreen({super.key, required this.items});
+/* --------------------------------- Cart ----------------------------------- */
 
-  static String _format(int v) {
-    final s = v.toString();
-    final b = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      final idx = s.length - i;
-      b.write(s[i]);
-      if (idx > 1 && idx % 3 == 1) b.write('.');
-    }
-    return b.toString();
-  }
+class CartScreen extends StatelessWidget {
+  const CartScreen({super.key, required this.items});
+  final List<CartItem> items;
+
+  static String _f(int v) => QuickSaleScreenState.formatInt(v);
 
   @override
   Widget build(BuildContext context) {
-    final total = items.fold<int>(0, (sum, it) => sum + it.price);
+    final total = items.fold<int>(0, (s, it) => s + it.price);
     return Scaffold(
       appBar: AppBar(title: const Text('Cart')),
       body: Column(
@@ -30,7 +22,7 @@ class CartScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               itemCount: items.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, i) {
+              itemBuilder: (_, i) {
                 final it = items[i];
                 return Material(
                   color: Colors.white,
@@ -45,7 +37,7 @@ class CartScreen extends StatelessWidget {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     trailing: Text(
-                      'Rp ${_format(it.price)}',
+                      'Rp ${_f(it.price)}',
                       style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -70,7 +62,7 @@ class CartScreen extends StatelessWidget {
               children: [
                 const Text('Subtotal', style: TextStyle(fontSize: 16)),
                 Text(
-                  'Rp ${_format(total)}',
+                  'Rp ${_f(total)}',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,

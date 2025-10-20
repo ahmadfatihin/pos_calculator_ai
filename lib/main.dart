@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pos_calculator_ai/cart_screen.dart';
 
 void main() => runApp(const PosApp());
 
@@ -41,10 +42,10 @@ class CartItem {
 class QuickSaleScreen extends StatefulWidget {
   const QuickSaleScreen({super.key});
   @override
-  State<QuickSaleScreen> createState() => _QuickSaleScreenState();
+  State<QuickSaleScreen> createState() => QuickSaleScreenState();
 }
 
-class _QuickSaleScreenState extends State<QuickSaleScreen> {
+class QuickSaleScreenState extends State<QuickSaleScreen> {
   // Calculator display (formatted with thousands separators)
   String _display = '0';
 
@@ -66,7 +67,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
 
   int _parse(String s) => int.tryParse(s.replaceAll('.', '')) ?? 0;
 
-  static String _formatInt(int v) {
+  static String formatInt(int v) {
     final s = v.toString();
     final b = StringBuffer();
     for (int i = 0; i < s.length; i++) {
@@ -102,7 +103,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
             _display = '0';
           } else {
             raw = raw.substring(0, raw.length - 1);
-            _display = raw.isEmpty ? '0' : _formatInt(int.parse(raw));
+            _display = raw.isEmpty ? '0' : formatInt(int.parse(raw));
           }
         });
         return;
@@ -110,7 +111,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
       case '000':
         setState(() {
           final v = _parse(_display);
-          _display = _formatInt(v * 1000);
+          _display = formatInt(v * 1000);
         });
         return;
 
@@ -147,7 +148,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
             } else {
               _display += k;
             }
-            _display = _formatInt(_parse(_display));
+            _display = formatInt(_parse(_display));
           });
         }
     }
@@ -160,7 +161,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
       _display = '0';
     });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Added ${p.name} • Rp ${_formatInt(p.price)}')),
+      SnackBar(content: Text('Added ${p.name} • Rp ${formatInt(p.price)}')),
     );
   }
 
@@ -192,7 +193,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
             Column(
               children: [
                 _Header(
-                  amountText: 'Rp ${_formatInt(inputVal)}',
+                  amountText: 'Rp ${formatInt(inputVal)}',
                   onOpenCart: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -421,7 +422,7 @@ class _ProductCard extends StatelessWidget {
   final String imageUrl;
   final VoidCallback onTap;
 
-  static String _f(int v) => _QuickSaleScreenState._formatInt(v);
+  static String _f(int v) => QuickSaleScreenState.formatInt(v);
 
   @override
   Widget build(BuildContext context) {
@@ -653,81 +654,6 @@ class _CalcKey extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/* --------------------------------- Cart ----------------------------------- */
-
-class CartScreen extends StatelessWidget {
-  const CartScreen({super.key, required this.items});
-  final List<CartItem> items;
-
-  static String _f(int v) => _QuickSaleScreenState._formatInt(v);
-
-  @override
-  Widget build(BuildContext context) {
-    final total = items.fold<int>(0, (s, it) => s + it.price);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Cart')),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: items.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) {
-                final it = items[i];
-                return Material(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: Colors.green.shade50,
-                      child: Text(it.name[0].toUpperCase()),
-                    ),
-                    title: Text(
-                      it.name,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    trailing: Text(
-                      'Rp ${_f(it.price)}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Subtotal', style: TextStyle(fontSize: 16)),
-                Text(
-                  'Rp ${_f(total)}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
