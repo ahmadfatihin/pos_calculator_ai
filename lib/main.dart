@@ -84,9 +84,11 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
         break;
       case 1:
         // Navigate to History screen
-        Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (context) => const HistoryScreen()));
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => HistoryScreen(cartItems: _cart),
+          ),
+        );
         break;
       case 2:
         // Navigate to Settings screen (placeholder)

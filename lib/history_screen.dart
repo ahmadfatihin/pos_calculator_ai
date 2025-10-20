@@ -1,8 +1,19 @@
+// history_screen.dart
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:pos_calculator_ai/app_pallete.dart';
+import 'package:pos_calculator_ai/main.dart'; // for CartItem
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({super.key});
+  const HistoryScreen({
+    super.key,
+    required this.cartItems, // <-- live items from app
+  });
+
+  /// Live cart items coming from your app state
+  final List<CartItem> cartItems;
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -11,48 +22,30 @@ class HistoryScreen extends StatefulWidget {
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = '7 Days';
 
-  // Sample transaction data
-  final List<Transaction> _transactions = [
-    Transaction(
-      id: 'WARM10102025-00003',
-      time: '10.21.11',
-      total: 17000,
-      paymentMethod: 'QRIS',
-      date: DateTime(2025, 2, 5),
-    ),
-    Transaction(
-      id: 'WARM10102025-00002',
-      time: '08.30.29',
-      total: 17000,
-      paymentMethod: 'QRIS',
-      date: DateTime(2025, 2, 5),
-    ),
-    Transaction(
-      id: 'WARM10102025-00001',
-      time: '14.30.12',
-      total: 17000,
-      paymentMethod: 'QRIS',
-      date: DateTime(2025, 2, 5),
-    ),
-  ];
+  // Build "transactions" from cart items (qty is always 1; id hard-coded)
+  late final List<Transaction> _transactions = widget.cartItems.map((c) {
+    final now = DateTime.now();
+    return Transaction(
+      id: 'WARM-LOCAL-0001', // hard-coded ID per request
+      time: _fmtTime(now),
+      total: c.price,
+      paymentMethod: 'QRIS', // or anything you prefer
+      date: now,
+      itemName: c.name,
+    );
+  }).toList();
 
-  void _onFilterChanged(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-    });
-  }
+  void _onFilterChanged(String filter) =>
+      setState(() => _selectedFilter = filter);
 
   void _onNavigationTapped(int index) {
     switch (index) {
       case 0:
-        // Navigate back to Calculator screen
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(); // back to Calculator
         break;
       case 1:
-        // Already on History screen, do nothing
         break;
       case 2:
-        // Navigate to Settings screen (placeholder)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Settings screen coming soon!')),
         );
@@ -60,10 +53,68 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
+  // === AI summary posting ===
+  // === AI summary posting ===
+  Future<void> _postWeeklyReport() async {
+    // Choose correct host depending on platform
+    final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
+    final uri = Uri.parse('http://$host:8081/ai-report');
+
+    // Generate start/end dates (yesterday → today)
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(days: 1));
+
+    String d(DateTime x) =>
+        '${x.year.toString().padLeft(4, '0')}-'
+        '${x.month.toString().padLeft(2, '0')}-'
+        '${x.day.toString().padLeft(2, '0')}';
+
+    // Construct the payload body
+    final payload = {
+      'type': 'weekly',
+      'salesData': {
+        'startDate': d(start),
+        'endDate': d(now),
+        'sales': widget.cartItems.map((it) {
+          return {
+            'product': it.name,
+            'price': it.price,
+            'quantitySold': 1,
+            'date': d(now),
+          };
+        }).toList(),
+      },
+    };
+
+    try {
+      final res = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (!mounted) return;
+
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('AI summary posted successfully')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Post failed: ${res.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Network error: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Group transactions by date
-    final groupedTransactions = _groupTransactionsByDate(_transactions);
+    final grouped = _groupByDate(_transactions);
 
     return Scaffold(
       backgroundColor: AppPalette.bg,
@@ -92,17 +143,35 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             _buildHeader(),
-
-            // Date Filter Pills
             const SizedBox(height: 16),
             _buildDateFilterPills(),
-
-            // Transaction List
-            Expanded(child: _buildTransactionList(groupedTransactions)),
-
-            // Bottom Download Button
+            Expanded(child: _buildTransactionList(grouped)),
+            // Two buttons: Send to AI + Download
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.auto_awesome),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppPalette.green600,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: widget.cartItems.isEmpty
+                      ? null
+                      : _postWeeklyReport,
+                  label: const Text(
+                    'Send AI Summary',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
             _buildDownloadButton(),
             const SizedBox(height: 16),
           ],
@@ -110,6 +179,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
   }
+
+  // ==== UI bits ====
 
   Widget _buildHeader() {
     return Container(
@@ -123,7 +194,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
       child: Row(
         children: [
-          // Mode pill
           Expanded(
             child: Container(
               height: 64,
@@ -164,7 +234,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           const SizedBox(width: 12),
-          // Cart pill
           Container(
             height: 64,
             width: 64,
@@ -172,11 +241,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               color: Colors.white.withOpacity(.12),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Icon(
-              Icons.shopping_cart,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.history, color: Colors.white, size: 28),
           ),
         ],
       ),
@@ -238,7 +303,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
         height: 50,
         child: OutlinedButton(
           onPressed: () {
-            // Handle download
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Downloading report...')),
             );
@@ -263,16 +327,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildTransactionList(Map<DateTime, List<Transaction>> grouped) {
+    if (_transactions.isEmpty) {
+      return Center(
+        child: Text(
+          'No transactions yet',
+          style: TextStyle(color: Colors.grey.shade600),
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: grouped.length,
       itemBuilder: (context, index) {
         final date = grouped.keys.elementAt(index);
         final transactions = grouped[date]!;
-
         return Column(
           children: [
-            // Date divider
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Row(
@@ -293,17 +364,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
               ),
             ),
-            // Transactions
-            ...transactions.map(
-              (transaction) => _buildTransactionCard(transaction),
-            ),
+            ...transactions.map(_buildTransactionCard),
           ],
         );
       },
     );
   }
 
-  Widget _buildTransactionCard(Transaction transaction) {
+  Widget _buildTransactionCard(Transaction t) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -320,11 +388,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       child: Column(
         children: [
+          // ID / time
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                transaction.id,
+                t.id,
                 style: const TextStyle(
                   color: AppPalette.green800,
                   fontWeight: FontWeight.w600,
@@ -332,21 +401,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
               Text(
-                transaction.time,
+                t.time,
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+          // Item name
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Total',
+                'Item',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
               Text(
-                'Rp ${_formatPrice(transaction.total)}',
+                t.itemName,
                 style: const TextStyle(
                   color: AppPalette.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -356,6 +426,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ],
           ),
           const SizedBox(height: 8),
+          // Total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Total',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+              ),
+              Text(
+                'Rp ${_formatPrice(t.total)}',
+                style: const TextStyle(
+                  color: AppPalette.textPrimary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Payment method
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -364,7 +454,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
               Text(
-                transaction.paymentMethod,
+                t.paymentMethod,
                 style: const TextStyle(
                   color: AppPalette.textPrimary,
                   fontWeight: FontWeight.w600,
@@ -378,26 +468,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Map<DateTime, List<Transaction>> _groupTransactionsByDate(
-    List<Transaction> transactions,
-  ) {
-    final Map<DateTime, List<Transaction>> grouped = {};
-    for (var transaction in transactions) {
-      final dateKey = DateTime(
-        transaction.date.year,
-        transaction.date.month,
-        transaction.date.day,
-      );
-      if (!grouped.containsKey(dateKey)) {
-        grouped[dateKey] = [];
-      }
-      grouped[dateKey]!.add(transaction);
+  // ==== helpers ====
+
+  Map<DateTime, List<Transaction>> _groupByDate(List<Transaction> list) {
+    final map = <DateTime, List<Transaction>>{};
+    for (final t in list) {
+      final k = DateTime(t.date.year, t.date.month, t.date.day);
+      (map[k] ??= []).add(t);
     }
-    return grouped;
+    return map;
   }
 
   String _formatDate(DateTime date) {
-    final months = [
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -413,6 +496,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     ];
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
+
+  String _fmtTime(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}.'
+      '${dt.minute.toString().padLeft(2, '0')}.'
+      '${dt.second.toString().padLeft(2, '0')}';
 
   String _formatPrice(int price) {
     final s = price.toString();
@@ -432,6 +520,7 @@ class Transaction {
   final int total;
   final String paymentMethod;
   final DateTime date;
+  final String itemName;
 
   Transaction({
     required this.id,
@@ -439,5 +528,6 @@ class Transaction {
     required this.total,
     required this.paymentMethod,
     required this.date,
+    required this.itemName,
   });
 }
