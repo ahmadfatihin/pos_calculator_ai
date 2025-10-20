@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:pos_calculator_ai/main.dart';
 
 /* --------------------------------- Cart ----------------------------------- */
+/* CART SCREEN */
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key, required this.items});
@@ -10,11 +11,19 @@ class CartScreen extends StatelessWidget {
 
   static String _f(int v) => QuickSaleScreenState.formatInt(v);
 
+  int get _subtotal => items.fold<int>(0, (s, it) => s + it.price);
+
   @override
   Widget build(BuildContext context) {
-    final total = items.fold<int>(0, (s, it) => s + it.price);
     return Scaffold(
-      appBar: AppBar(title: const Text('Cart')),
+      appBar: AppBar(
+        title: const Text('Cart'),
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -45,8 +54,8 @@ class CartScreen extends StatelessWidget {
               },
             ),
           ),
+          // Subtotal + Payment button
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -57,15 +66,36 @@ class CartScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('Subtotal', style: TextStyle(fontSize: 16)),
-                Text(
-                  'Rp ${_f(total)}',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Subtotal', style: TextStyle(fontSize: 16)),
+                    Text(
+                      'Rp ${_f(_subtotal)}',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: _subtotal == 0 ? null : () {},
+                    child: const Text(
+                      'Payment',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ),
               ],
