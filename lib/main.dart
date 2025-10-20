@@ -30,18 +30,13 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
   String _display = '0';
 
   final List<_Product> _products = const [
-    _Product(
-      'Indomie Goreng',
-      3000,
-      'https://pasarsegar.co.id/wp-content/uploads/2022/12/3bf90ea6-651c-4bb1-b0eb-97c1df7a11aa_Indomie-Rasa-Mie-Goreng-1-Pcs-10-1.jpg',
-    ),
+    _Product('Indomie Goreng', 3000, 'https://picsum.photos/seed/indomie/200'),
     _Product('Nasi Putih', 5000, 'https://picsum.photos/seed/nasi/200'),
     _Product('Teh Manis', 5000, 'https://picsum.photos/seed/teh/200'),
     _Product('Indomie Telor', 12000, 'https://picsum.photos/seed/telor/200'),
   ];
 
   int _parse(String s) => int.tryParse(s.replaceAll('.', '')) ?? 0;
-
   static String _format(int v) {
     final s = v.toString();
     final buf = StringBuffer();
@@ -58,13 +53,14 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
       case 'CLEAR':
         setState(() => _display = '0');
         return;
-      case '%':
-      case '/':
-      case 'X':
-      case '+':
-      case '-':
-        return;
-      case ',':
+      case '⌫':
+        setState(() {
+          if (_display.length > 1) {
+            _display = _display.substring(0, _display.length - 1);
+          } else {
+            _display = '0';
+          }
+        });
         return;
       case '000':
         setState(() {
@@ -301,74 +297,106 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
   }
 
   Widget _keypad() {
-    const keyWhite = Colors.white;
-    final fnBg = const Color(0xFFE8ECEF);
-    final opBg = const Color(0xFFD7E0EA);
-    const clearBg = Color(0xFFF36A6A);
+    const white = Colors.white;
+    final fn = const Color(0xFFE8ECEF);
+    final op = const Color(0xFFD7E0EA);
+    const red = Color(0xFFF36A6A);
+    const spacing = 8.0;
 
-    final rows = <List<_Cell?>>[
-      [
-        _Cell('CLEAR', clearBg, Colors.white),
-        _Cell('%', fnBg),
-        _Cell('/', fnBg),
-        _Cell('X', opBg),
-      ],
-      [
-        _Cell('7', keyWhite),
-        _Cell('8', keyWhite),
-        _Cell('9', keyWhite),
-        _Cell('-', opBg),
-      ],
-      [
-        _Cell('4', keyWhite),
-        _Cell('5', keyWhite),
-        _Cell('6', keyWhite),
-        _Cell('+', opBg),
-      ],
-      [_Cell('1', keyWhite), _Cell('2', keyWhite), _Cell('3', keyWhite), null],
-      [
-        _Cell(',', keyWhite),
-        _Cell('000', keyWhite),
-        _Cell('0', keyWhite),
-        null,
-      ],
-    ];
+    // tinggi tombol biasa
+    const double keyH = 64;
+    // tinggi tombol double (untuk + dan -)
+    const double doubleH = keyH * 2 + spacing;
 
-    return Column(
-      children: [
-        for (final r in rows) ...[
-          SizedBox(
-            height: 64,
-            child: Row(
+    return Container(
+      height: keyH * 5 + spacing * 6, // total tinggi fix
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ==== KIRI ====
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                for (int i = 0; i < 4; i++) ...[
-                  Expanded(
-                    child: r[i] == null
-                        ? const SizedBox.shrink()
-                        : _CalcKey(
-                            label: r[i]!.label,
-                            bg: r[i]!.bg,
-                            fg: r[i]!.fg,
-                            onTap: () => _onKey(r[i]!.label),
-                          ),
-                  ),
-                  if (i != 3) const SizedBox(width: 8),
-                ],
+                _row(['CLEAR', '%', '/', 'X'], [red, fn, fn, op], keyH),
+                SizedBox(height: spacing),
+                _row(['7', '8', '9'], [white, white, white], keyH),
+                SizedBox(height: spacing),
+                _row(['4', '5', '6'], [white, white, white], keyH),
+                SizedBox(height: spacing),
+                _row(['1', '2', '3'], [white, white, white], keyH),
+                SizedBox(height: spacing),
+                _row([',', '000', '0'], [white, white, white], keyH),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+
+          SizedBox(width: spacing),
+
+          // ==== KANAN ====
+          Column(
+            children: [
+              SizedBox(
+                height: keyH,
+                width: 64,
+                child: _CalcKey(
+                  label: '⌫',
+                  bg: op,
+                  fg: Colors.black87,
+                  onTap: () => _onKey('⌫'),
+                ),
+              ),
+              SizedBox(height: spacing),
+              SizedBox(
+                height: doubleH,
+                width: 64,
+                child: _CalcKey(
+                  label: '-',
+                  bg: op,
+                  fg: Colors.black87,
+                  onTap: () {},
+                ),
+              ),
+              SizedBox(height: spacing),
+              SizedBox(
+                height: doubleH,
+                width: 64,
+                child: _CalcKey(
+                  label: '+',
+                  bg: op,
+                  fg: Colors.black87,
+                  onTap: () {},
+                ),
+              ),
+            ],
+          ),
         ],
-      ],
+      ),
     );
   }
-}
 
-class _Cell {
-  final String label;
-  final Color bg;
-  final Color fg;
-  _Cell(this.label, this.bg, [this.fg = Colors.black87]);
+  Widget _row(List<String> keys, List<Color> colors, double height) {
+    const spacing = 8.0;
+    return SizedBox(
+      height: height,
+      child: Row(
+        children: [
+          for (int i = 0; i < keys.length; i++) ...[
+            Expanded(
+              child: _CalcKey(
+                label: keys[i],
+                bg: colors[i],
+                fg: keys[i] == 'CLEAR' ? Colors.white : Colors.black87,
+                onTap: () => _onKey(keys[i]),
+              ),
+            ),
+            if (i != keys.length - 1) SizedBox(width: spacing),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _CalcKey extends StatelessWidget {
@@ -386,7 +414,6 @@ class _CalcKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isClear = label == 'CLEAR';
     return Material(
       color: bg,
       borderRadius: BorderRadius.circular(14),
@@ -399,7 +426,7 @@ class _CalcKey extends StatelessWidget {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: isClear ? Colors.white : fg,
+              color: fg,
             ),
           ),
         ),
