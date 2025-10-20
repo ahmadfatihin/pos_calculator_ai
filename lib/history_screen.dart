@@ -1,8 +1,10 @@
 // history_screen.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:pos_calculator_ai/ai_report_screen.dart';
 import 'package:pos_calculator_ai/app_pallete.dart';
 import 'package:pos_calculator_ai/main.dart'; // for CartItem
 
@@ -117,8 +119,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
     };
   }
 
-  // === AI summary posting ===
+// === AI summary posting ===
   Future<void> _postWeeklyReport() async {
+    if (widget.cartItems.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak ada data untuk diringkas.')),
+      );
+      return;
+    }
+
     // Choose correct host depending on platform
     final host = Platform.isAndroid ? '10.0.2.2' : 'localhost';
     final uri = Uri.parse('http://$host:8081/ai-report');
@@ -148,29 +158,78 @@ class _HistoryScreenState extends State<HistoryScreen> {
       },
     };
 
-    try {
-      final res = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
+    // Show loading
+    if (mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(),
+        ),
       );
+    }
+
+    try {
+      final res = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (!mounted) return;
 
+      Navigator.of(context).pop(); // close loading
+
       if (res.statusCode >= 200 && res.statusCode < 300) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AI summary posted successfully')),
+        // Parse JSON
+        String type = 'weekly';
+        String report = 'No report text returned from AI service.';
+
+        try {
+          final data = jsonDecode(res.body) as Map<String, dynamic>;
+          type = (data['type'] as String?) ?? type;
+          report = (data['report'] as String?) ?? report;
+        } catch (_) {
+          // keep defaults if parsing fails
+        }
+
+        // Navigate to AI report screen
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AiReportScreen(type: type, report: report),
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Post failed: ${res.statusCode}')),
         );
       }
+    } on SocketException catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Network error: $e')));
+    } on FormatException catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Invalid JSON: $e')));
+    } on TimeoutException {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close loading
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request timeout. Coba lagi.')),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Network error: $e')));
+      Navigator.of(context).pop(); // close loading
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Unexpected error: $e')));
     }
   }
 
