@@ -67,21 +67,27 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
 
   // Demo catalog
   final List<Product> _products = const [
-    Product('Indomie Goreng', 3000, 'https://picsum.photos/seed/indomie/200'),
-    Product('Nasi Putih', 5000, 'https://picsum.photos/seed/nasi/200'),
-    Product('Teh Manis', 5000, 'https://picsum.photos/seed/teh/200'),
-    Product('Indomie Telor', 12000, 'https://picsum.photos/seed/telor/200'),
+    Product('Fried Noodle - Indomie', 3000,
+        'https://www.indomie.co.id/Content/Product/indomie-goreng-spesial-plus_big.png'),
+    Product('Rice', 5000,
+        'https://upload.wikimedia.org/wikipedia/commons/2/2d/Nasi_dibentuk_bulat.jpg'),
+    Product('Ice Tea', 5000,
+        'https://d1vbn70lmn1nqe.cloudfront.net/prod/wp-content/uploads/2021/06/15093247/Ketahui-Fakta-Es-Teh-Manis.jpg'),
+    Product('Noodle with Egg', 12000,
+        'https://blue.kumparan.com/image/upload/fl_progressive,fl_lossy,c_fill,f_auto,q_auto:best,w_640/v1538128192/ffjpp4pme8zszmcz3rzr.png'),
     Product(
-      'Indomie Mi Goreng Special',
+      'Special Noodle - Indomie',
       7000,
       'https://www.indomie.com/uploads/product/indomie-mi-goreng-special_detail_094906814.png',
     ),
-    Product('Nasi Gurih', 15000, 'https://picsum.photos/seed/nasigurih/200'),
-    Product('Teh Manis Botol', 6000, 'https://id.pngegg.com/png-ecyny.png'),
+    Product('Uduk Rice', 15000,
+        'https://asset.kompas.com/crops/cnjJ8a2_lEamvP1OkUClN1Oi0Dg=/100x67:900x600/1200x800/data/photo/2021/02/21/603203834f00f.jpg'),
+    Product('Teh Botol', 6000,
+        'https://c.alfagift.id/product/1/1_A12790005980_20200513221105857_base.jpg'),
     Product(
-      'Paket Hemat Makan',
+      'Yoshinoya Chicken Meal',
       50000,
-      'https://picsum.photos/seed/pakethe­mat/200',
+      'https://caripromo.id/images/makanan/promo-makanan-yoshinoya-paket-hemat-ayam.jpg',
     ),
   ];
 
@@ -340,16 +346,16 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                 child: GestureDetector(
                                   onTap: subtotal > 0
                                       ? () async =>
-                                            await Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) => CartScreen(
-                                                  items:
-                                                      _cart, // pass the SAME list reference
-                                                  onChanged: () =>
-                                                      setState(() {}),
-                                                ),
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => CartScreen(
+                                                items:
+                                                    _cart, // pass the SAME list reference
+                                                onChanged: () =>
+                                                    setState(() {}),
                                               ),
-                                            )
+                                            ),
+                                          )
                                       : null,
                                   child: Container(
                                     height: 56,
@@ -380,7 +386,6 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                 ),
                               ),
                             ),
-
                             const SliverToBoxAdapter(
                               child: SizedBox(height: 20),
                             ),
@@ -610,23 +615,23 @@ class _Keypad extends StatelessWidget {
     const keyH = 58.0;
 
     Widget leftRow(List<_KeyDef> keys) => SizedBox(
-      height: keyH,
-      child: Row(
-        children: [
-          for (int i = 0; i < keys.length; i++) ...[
-            Expanded(
-              child: _CalcKey(
-                label: keys[i].label,
-                bg: keys[i].bg,
-                fg: keys[i].fg,
-                onTap: () => onKey(keys[i].label),
-              ),
-            ),
-            if (i != keys.length - 1) const SizedBox(width: gap),
-          ],
-        ],
-      ),
-    );
+          height: keyH,
+          child: Row(
+            children: [
+              for (int i = 0; i < keys.length; i++) ...[
+                Expanded(
+                  child: _CalcKey(
+                    label: keys[i].label,
+                    bg: keys[i].bg,
+                    fg: keys[i].fg,
+                    onTap: () => onKey(keys[i].label),
+                  ),
+                ),
+                if (i != keys.length - 1) const SizedBox(width: gap),
+              ],
+            ],
+          ),
+        );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
