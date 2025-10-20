@@ -6,12 +6,12 @@ import 'package:pos_calculator_ai/main.dart';
 /* --------------------------------- Cart ----------------------------------- */
 /* CART SCREEN */
 /* ====================== CART SCREEN ====================== */
-import 'package:flutter/material.dart';
-import 'package:pos_calculator_ai/main.dart';
 
 class CartScreen extends StatefulWidget {
-  const CartScreen({super.key, required this.items});
-  final List<CartItem> items;
+  const CartScreen({super.key, required this.items, this.onChanged});
+
+  final List<CartItem> items; // same instance as parent
+  final VoidCallback? onChanged;
 
   @override
   State<CartScreen> createState() => _CartScreenState();
@@ -21,16 +21,22 @@ class _CartScreenState extends State<CartScreen> {
   static String _f(int v) => QuickSaleScreenState.formatInt(v);
 
   List<CartItem> get items => widget.items;
-  int get _subtotal => items.fold<int>(0, (s, it) => s + it.price);
+  int get _subtotal => items.fold(0, (s, it) => s + it.price);
 
   void _clearCart() {
     setState(() => items.clear());
+    widget.onChanged?.call(); // notify parent
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Cart cleared'),
         duration: Duration(seconds: 1),
       ),
     );
+  }
+
+  void _removeAt(int i) {
+    setState(() => items.removeAt(i));
+    widget.onChanged?.call(); // notify parent
   }
 
   @override
@@ -106,9 +112,19 @@ class _CartScreenState extends State<CartScreen> {
                         it.name,
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      trailing: Text(
-                        'Rp ${_f(it.price)}',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Rp ${_f(it.price)}',
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close, size: 20),
+                            onPressed: () => _removeAt(i),
+                            tooltip: 'Remove',
+                          ),
+                        ],
                       ),
                     ),
                   );

@@ -210,11 +210,15 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
               children: [
                 _Header(
                   amountText: 'Rp ${formatInt(inputVal)}',
-                  onOpenCart: () {
-                    Navigator.of(context).push(
+                  onOpenCart: () async {
+                    await Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) =>
-                            CartScreen(items: List<CartItem>.from(_cart)),
+                        builder: (_) => CartScreen(
+                          items: _cart, // <-- pass the SAME list
+                          onChanged: () => setState(
+                            () {},
+                          ), // <-- parent rebuilds subtotal/Pay
+                        ),
                       ),
                     );
                   },
@@ -301,12 +305,14 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                       ),
                                     ),
                                     onPressed: subtotal > 0
-                                        ? () => Navigator.of(context).push(
+                                        ? () async => await Navigator.of(context).push(
                                             MaterialPageRoute(
                                               builder: (_) => CartScreen(
-                                                items: List<CartItem>.from(
-                                                  _cart,
-                                                ),
+                                                items:
+                                                    _cart, // <-- pass the SAME list
+                                                onChanged: () => setState(
+                                                  () {},
+                                                ), // <-- parent rebuilds subtotal/Pay
                                               ),
                                             ),
                                           )
