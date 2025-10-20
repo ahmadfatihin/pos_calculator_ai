@@ -71,6 +71,18 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
     Product('Nasi Putih', 5000, 'https://picsum.photos/seed/nasi/200'),
     Product('Teh Manis', 5000, 'https://picsum.photos/seed/teh/200'),
     Product('Indomie Telor', 12000, 'https://picsum.photos/seed/telor/200'),
+    Product(
+      'Indomie Mi Goreng Special',
+      7000,
+      'https://www.indomie.com/uploads/product/indomie-mi-goreng-special_detail_094906814.png',
+    ),
+    Product('Nasi Gurih', 15000, 'https://picsum.photos/seed/nasigurih/200'),
+    Product('Teh Manis Botol', 6000, 'https://id.pngegg.com/png-ecyny.png'),
+    Product(
+      'Paket Hemat Makan',
+      50000,
+      'https://picsum.photos/seed/pakethe­mat/200',
+    ),
   ];
 
   // Cart state
