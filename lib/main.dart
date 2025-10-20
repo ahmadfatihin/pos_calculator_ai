@@ -4,7 +4,6 @@ void main() => runApp(const PosGreenApp());
 
 class PosGreenApp extends StatelessWidget {
   const PosGreenApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,7 +22,6 @@ class PosGreenApp extends StatelessWidget {
 
 class QuickSaleScreen extends StatefulWidget {
   const QuickSaleScreen({super.key});
-
   @override
   State<QuickSaleScreen> createState() => _QuickSaleScreenState();
 }
@@ -32,9 +30,14 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
   String _display = '0';
 
   final List<_Product> _products = const [
-    _Product('Indomie Goreng', 3000, 'https://picsum.photos/seed/indomie/200'),
-    _Product('Mie Rebus', 4000, 'https://picsum.photos/seed/mie/200'),
+    _Product(
+      'Indomie Goreng',
+      3000,
+      'https://pasarsegar.co.id/wp-content/uploads/2022/12/3bf90ea6-651c-4bb1-b0eb-97c1df7a11aa_Indomie-Rasa-Mie-Goreng-1-Pcs-10-1.jpg',
+    ),
+    _Product('Nasi Putih', 5000, 'https://picsum.photos/seed/nasi/200'),
     _Product('Teh Manis', 5000, 'https://picsum.photos/seed/teh/200'),
+    _Product('Indomie Telor', 12000, 'https://picsum.photos/seed/telor/200'),
   ];
 
   int _parse(String s) => int.tryParse(s.replaceAll('.', '')) ?? 0;
@@ -50,21 +53,38 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
     return buf.toString();
   }
 
-  void _tap(String key) {
-    setState(() {
-      switch (key) {
-        case 'CLEAR':
-          _display = '0';
-          return;
-        default:
-          if (_display == '0') {
-            _display = key;
-          } else {
-            _display += key;
-          }
-          _display = _format(_parse(_display));
-      }
-    });
+  void _onKey(String k) {
+    switch (k) {
+      case 'CLEAR':
+        setState(() => _display = '0');
+        return;
+      case '%':
+      case '/':
+      case 'X':
+      case '+':
+      case '-':
+        return;
+      case ',':
+        return;
+      case '000':
+        setState(() {
+          final v = _parse(_display);
+          _display = _format(v * 1000);
+        });
+        return;
+      default:
+        if (RegExp(r'^\d+$').hasMatch(k)) {
+          setState(() {
+            if (_display == '0') {
+              _display = k;
+            } else {
+              _display += k;
+            }
+            final v = _parse(_display);
+            _display = _format(v);
+          });
+        }
+    }
   }
 
   @override
@@ -91,7 +111,6 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Header
             Column(
               children: [
                 Container(
@@ -167,7 +186,6 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
                     ],
                   ),
                 ),
-                // Product list
                 if (matched.isNotEmpty)
                   Expanded(
                     child: ListView.builder(
@@ -191,7 +209,7 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
-                              vertical: 4,
+                              vertical: 6,
                             ),
                             leading: ClipRRect(
                               borderRadius: BorderRadius.circular(8),
@@ -229,8 +247,6 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
                   ),
               ],
             ),
-
-            // Draggable calculator sheet
             DraggableScrollableSheet(
               initialChildSize: 0.37,
               minChildSize: 0.25,
@@ -285,61 +301,108 @@ class _QuickSaleScreenState extends State<QuickSaleScreen> {
   }
 
   Widget _keypad() {
-    const fnColor = Color(0xFFE8ECEF);
-    const red = Color(0xFFF36A6A);
+    const keyWhite = Colors.white;
+    final fnBg = const Color(0xFFE8ECEF);
+    final opBg = const Color(0xFFD7E0EA);
+    const clearBg = Color(0xFFF36A6A);
+
+    final rows = <List<_Cell?>>[
+      [
+        _Cell('CLEAR', clearBg, Colors.white),
+        _Cell('%', fnBg),
+        _Cell('/', fnBg),
+        _Cell('X', opBg),
+      ],
+      [
+        _Cell('7', keyWhite),
+        _Cell('8', keyWhite),
+        _Cell('9', keyWhite),
+        _Cell('-', opBg),
+      ],
+      [
+        _Cell('4', keyWhite),
+        _Cell('5', keyWhite),
+        _Cell('6', keyWhite),
+        _Cell('+', opBg),
+      ],
+      [_Cell('1', keyWhite), _Cell('2', keyWhite), _Cell('3', keyWhite), null],
+      [
+        _Cell(',', keyWhite),
+        _Cell('000', keyWhite),
+        _Cell('0', keyWhite),
+        null,
+      ],
+    ];
+
     return Column(
       children: [
-        _row(['CLEAR', '%', '/', 'X'], [red, fnColor, fnColor, fnColor]),
-        _row(['7', '8', '9', '-']),
-        _row(['4', '5', '6', '+']),
-        _row(['1', '2', '3']),
-        _row([',', '000', '0']),
+        for (final r in rows) ...[
+          SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                for (int i = 0; i < 4; i++) ...[
+                  Expanded(
+                    child: r[i] == null
+                        ? const SizedBox.shrink()
+                        : _CalcKey(
+                            label: r[i]!.label,
+                            bg: r[i]!.bg,
+                            fg: r[i]!.fg,
+                            onTap: () => _onKey(r[i]!.label),
+                          ),
+                  ),
+                  if (i != 3) const SizedBox(width: 8),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
       ],
     );
   }
+}
 
-  Widget _row(List<String> keys, [List<Color?>? colors]) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          for (int i = 0; i < keys.length; i++) ...[
-            Expanded(
-              child: GestureDetector(
-                onTap: () => _tap(keys[i]),
-                child: Container(
-                  height: 64,
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: colors != null && i < colors.length
-                        ? colors[i] ?? Colors.white
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.05),
-                        blurRadius: 2,
-                        offset: const Offset(1, 1),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      keys[i],
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: keys[i] == 'CLEAR'
-                            ? Colors.white
-                            : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+class _Cell {
+  final String label;
+  final Color bg;
+  final Color fg;
+  _Cell(this.label, this.bg, [this.fg = Colors.black87]);
+}
+
+class _CalcKey extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final VoidCallback onTap;
+  const _CalcKey({
+    super.key,
+    required this.label,
+    required this.bg,
+    required this.fg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isClear = label == 'CLEAR';
+    return Material(
+      color: bg,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isClear ? Colors.white : fg,
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }
