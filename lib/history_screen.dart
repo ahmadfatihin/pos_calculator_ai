@@ -53,7 +53,70 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
   }
 
-  // === AI summary posting ===
+  // === Filter logic for transactions ===
+  List<Transaction> _getFilteredTransactions() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    switch (_selectedFilter) {
+      case 'Today':
+        return _transactions.where((t) {
+          final transactionDate =
+              DateTime(t.date.year, t.date.month, t.date.day);
+          return transactionDate.isAtSameMomentAs(today);
+        }).toList();
+
+      case '7 Days':
+        final sevenDaysAgo = today.subtract(const Duration(days: 6));
+        return _transactions.where((t) {
+          final transactionDate =
+              DateTime(t.date.year, t.date.month, t.date.day);
+          return transactionDate
+                  .isAfter(sevenDaysAgo.subtract(const Duration(days: 1))) &&
+              transactionDate.isBefore(today.add(const Duration(days: 1)));
+        }).toList();
+
+      case '30 Days':
+        final thirtyDaysAgo = today.subtract(const Duration(days: 29));
+        return _transactions.where((t) {
+          final transactionDate =
+              DateTime(t.date.year, t.date.month, t.date.day);
+          return transactionDate
+                  .isAfter(thirtyDaysAgo.subtract(const Duration(days: 1))) &&
+              transactionDate.isBefore(today.add(const Duration(days: 1)));
+        }).toList();
+
+      case 'Custom':
+        // For now, return last 60 days
+        final sixtyDaysAgo = today.subtract(const Duration(days: 59));
+        return _transactions.where((t) {
+          final transactionDate =
+              DateTime(t.date.year, t.date.month, t.date.day);
+          return transactionDate
+                  .isAfter(sixtyDaysAgo.subtract(const Duration(days: 1))) &&
+              transactionDate.isBefore(today.add(const Duration(days: 1)));
+        }).toList();
+
+      default:
+        return _transactions;
+    }
+  }
+
+  // === Calculate stats for current filter ===
+  Map<String, dynamic> _getFilterStats() {
+    final filteredTransactions = _getFilteredTransactions();
+    final totalAmount =
+        filteredTransactions.fold<int>(0, (sum, t) => sum + t.total);
+    final transactionCount = filteredTransactions.length;
+
+    return {
+      'totalAmount': totalAmount,
+      'transactionCount': transactionCount,
+      'averageAmount':
+          transactionCount > 0 ? (totalAmount / transactionCount).round() : 0,
+    };
+  }
+
   // === AI summary posting ===
   Future<void> _postWeeklyReport() async {
     // Choose correct host depending on platform
@@ -64,8 +127,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final now = DateTime.now();
     final start = now.subtract(const Duration(days: 1));
 
-    String d(DateTime x) =>
-        '${x.year.toString().padLeft(4, '0')}-'
+    String d(DateTime x) => '${x.year.toString().padLeft(4, '0')}-'
         '${x.month.toString().padLeft(2, '0')}-'
         '${x.day.toString().padLeft(2, '0')}';
 
@@ -114,7 +176,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final grouped = _groupByDate(_transactions);
+    final filteredTransactions = _getFilteredTransactions();
+    final grouped = _groupByDate(filteredTransactions);
+    final stats = _getFilterStats();
 
     return Scaffold(
       backgroundColor: AppPalette.bg,
@@ -143,10 +207,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(),
+            _buildHeader(stats),
             const SizedBox(height: 16),
             _buildDateFilterPills(),
-            Expanded(child: _buildTransactionList(grouped)),
+            const SizedBox(height: 16),
+            _buildStatsCards(stats),
+            Expanded(
+              child: filteredTransactions.isEmpty
+                  ? _buildEmptyState()
+                  : _buildTransactionList(grouped),
+            ),
             // Two buttons: Send to AI + Download
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -162,9 +232,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: widget.cartItems.isEmpty
-                      ? null
-                      : _postWeeklyReport,
+                  onPressed:
+                      widget.cartItems.isEmpty ? null : _postWeeklyReport,
                   label: const Text(
                     'Send AI Summary',
                     style: TextStyle(fontWeight: FontWeight.w600),
@@ -172,7 +241,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ),
               ),
             ),
-            _buildDownloadButton(),
+            _buildDownloadButton(stats),
             const SizedBox(height: 16),
           ],
         ),
@@ -182,7 +251,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   // ==== UI bits ====
 
-  Widget _buildHeader() {
+  Widget _buildHeader(Map<String, dynamic> stats) {
     return Container(
       decoration: const BoxDecoration(
         gradient: AppPalette.headerGradient,
@@ -192,56 +261,206 @@ class _HistoryScreenState extends State<HistoryScreen> {
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: const Row(
+                    children: [
+                      Icon(
+                        Icons.shopping_cart_outlined,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      SizedBox(width: 12),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Mode',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Quick Sale',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                height: 64,
+                width: 64,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Icon(Icons.history, color: Colors.white, size: 28),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Total income display for selected filter
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(.15),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '$_selectedFilter Total Income',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Rp ${_formatPrice(stats['totalAmount'])}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCards(Map<String, dynamic> stats) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              height: 64,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(.12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: const [
-                  Icon(
-                    Icons.shopping_cart_outlined,
-                    color: Colors.white,
-                    size: 28,
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
                   ),
-                  SizedBox(width: 12),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Mode',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Quick Sale',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    '${stats['transactionCount']}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppPalette.green800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Transactions',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(width: 12),
-          Container(
-            height: 64,
-            width: 64,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.12),
-              borderRadius: BorderRadius.circular(20),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Rp ${_formatPrice(stats['averageAmount'])}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppPalette.green800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Average',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const Icon(Icons.history, color: Colors.white, size: 28),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.receipt_long_outlined,
+            size: 64,
+            color: Colors.grey.shade400,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No transactions found for $_selectedFilter',
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Try selecting a different time period',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade500,
+            ),
           ),
         ],
       ),
@@ -295,7 +514,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildDownloadButton() {
+  Widget _buildDownloadButton(Map<String, dynamic> stats) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SizedBox(
@@ -304,11 +523,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
         child: OutlinedButton(
           onPressed: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Downloading report...')),
+              SnackBar(
+                content: Text(
+                  'Downloading $_selectedFilter report: ${stats['transactionCount']} transactions, Rp ${_formatPrice(stats['totalAmount'])}',
+                ),
+              ),
             );
           },
           style: OutlinedButton.styleFrom(
-            side: BorderSide(color: AppPalette.green800, width: 2),
+            side: const BorderSide(color: AppPalette.green800, width: 2),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -327,15 +550,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildTransactionList(Map<DateTime, List<Transaction>> grouped) {
-    if (_transactions.isEmpty) {
-      return Center(
-        child: Text(
-          'No transactions yet',
-          style: TextStyle(color: Colors.grey.shade600),
-        ),
-      );
-    }
-
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: grouped.length,
@@ -453,12 +667,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 'Payment Method',
                 style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
               ),
-              Text(
-                t.paymentMethod,
-                style: const TextStyle(
-                  color: AppPalette.textPrimary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: t.paymentMethod == 'QRIS'
+                      ? AppPalette.green800.withOpacity(0.1)
+                      : Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  t.paymentMethod,
+                  style: TextStyle(
+                    color: t.paymentMethod == 'QRIS'
+                        ? AppPalette.green800
+                        : Colors.blue.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],
@@ -476,7 +701,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final k = DateTime(t.date.year, t.date.month, t.date.day);
       (map[k] ??= []).add(t);
     }
-    return map;
+
+    // Sort by date (newest first) and sort transactions within each day by time
+    final sortedKeys = map.keys.toList()..sort((a, b) => b.compareTo(a));
+    final sortedMap = <DateTime, List<Transaction>>{};
+    for (final key in sortedKeys) {
+      map[key]!.sort((a, b) => b.time.compareTo(a.time));
+      sortedMap[key] = map[key]!;
+    }
+
+    return sortedMap;
   }
 
   String _formatDate(DateTime date) {
@@ -497,8 +731,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
-  String _fmtTime(DateTime dt) =>
-      '${dt.hour.toString().padLeft(2, '0')}.'
+  String _fmtTime(DateTime dt) => '${dt.hour.toString().padLeft(2, '0')}.'
       '${dt.minute.toString().padLeft(2, '0')}.'
       '${dt.second.toString().padLeft(2, '0')}';
 
