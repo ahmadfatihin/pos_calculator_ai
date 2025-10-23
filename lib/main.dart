@@ -65,6 +65,10 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   // Pending terms: queued by tapping + or −; all committed to cart on =
   final List<CartItem> _pendingTerms = [];
 
+  // --- Multiply mode state ---
+  int? _mulBase; // harga satuan (mis. 5000)
+  bool _inMul = false; // setelah tekan 'X', input berikutnya = qty
+
   // Demo catalog
   final List<Product> _products = const [
     Product('Fried Noodle - Indomie', 3000,
@@ -72,6 +76,8 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
     Product('Rice', 5000,
         'https://upload.wikimedia.org/wikipedia/commons/2/2d/Nasi_dibentuk_bulat.jpg'),
     Product('Ice Tea', 5000,
+        'https://d1vbn70lmn1nqe.cloudfront.net/prod/wp-content/uploads/2021/06/15093247/Ketahui-Fakta-Es-Teh-Manis.jpg'),
+    Product('Lemon Tea', 5000,
         'https://d1vbn70lmn1nqe.cloudfront.net/prod/wp-content/uploads/2021/06/15093247/Ketahui-Fakta-Es-Teh-Manis.jpg'),
     Product('Noodle with Egg', 12000,
         'https://blue.kumparan.com/image/upload/fl_progressive,fl_lossy,c_fill,f_auto,q_auto:best,w_640/v1538128192/ffjpp4pme8zszmcz3rzr.png'),
@@ -82,12 +88,17 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
     ),
     Product('Uduk Rice', 15000,
         'https://asset.kompas.com/crops/cnjJ8a2_lEamvP1OkUClN1Oi0Dg=/100x67:900x600/1200x800/data/photo/2021/02/21/603203834f00f.jpg'),
-    Product('Teh Botol', 6000,
+    Product('Teh Botol', 5000,
         'https://c.alfagift.id/product/1/1_A12790005980_20200513221105857_base.jpg'),
     Product(
       'Yoshinoya Chicken Meal',
       50000,
       'https://caripromo.id/images/makanan/promo-makanan-yoshinoya-paket-hemat-ayam.jpg',
+    ),
+    Product(
+      'Ivan',
+      500000,
+      'https://media.licdn.com/dms/image/v2/D5622AQGyx9vARTLB5A/feedshare-shrink_800/B56ZmpSI7nKMAg-/0/1759481730198?e=2147483647&v=beta&t=dXBlVwiUp4gyf2M54Tg45ff3cBTymK6arCozCS0OQLo',
     ),
   ];
 
@@ -98,10 +109,8 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   void _onNavigationTapped(int index) {
     switch (index) {
       case 0:
-        // Already on Calculator screen, do nothing
         break;
       case 1:
-        // Navigate to History screen
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => HistoryScreen(cartItems: _cart),
@@ -109,7 +118,6 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
         );
         break;
       case 2:
-        // Navigate to Settings screen (placeholder)
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Settings screen coming soon!')),
         );
@@ -138,6 +146,9 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   void _queueCurrentAsUnknown() {
     final v = _parse(_display);
     if (v > 0) {
+      _pendingTerms.add(
+          const CartItem('Unknown item', 0)); // placeholder, corrected below
+      _pendingTerms.removeLast(); // ensure not double add if logic changes
       _pendingTerms.add(CartItem('Unknown item', v));
     }
   }
@@ -150,6 +161,8 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
         setState(() {
           _display = '0';
           _pendingTerms.clear();
+          _inMul = false;
+          _mulBase = null;
         });
         return;
 
@@ -172,26 +185,81 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
         });
         return;
 
-      // '+' and '−' queue a term and prepare for the next input
       case '+':
       case '-':
         setState(() {
-          _queueCurrentAsUnknown();
-          _display = '0';
+          if (_inMul) {
+            // Commit mulBase x qty ke pending terms
+            final qty = _parse(_display);
+            final base = _mulBase ?? 0;
+            if (base > 0 && qty > 0) {
+              final capped = qty.clamp(1, 999);
+              for (int i = 0; i < capped; i++) {
+                _pendingTerms.add(CartItem('Unknown item', base));
+              }
+            }
+            // reset multiply mode
+            _inMul = false;
+            _mulBase = null;
+            _display = '0';
+          } else {
+            _queueCurrentAsUnknown();
+            _display = '0';
+          }
         });
         return;
 
-      // '=' adds current term + all queued terms into the cart
+      case 'X':
+        setState(() {
+          final v = _parse(_display);
+          if (v > 0) {
+            _mulBase = v; // simpan harga satuan
+            _inMul = true; // input selanjutnya = qty
+            _display = '0'; // siap terima qty
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text('Multiply mode: Rp ${formatInt(v)} × qty')),
+            );
+          }
+        });
+        return;
+
       case '=':
         setState(() {
-          _queueCurrentAsUnknown();
-          if (_pendingTerms.isNotEmpty) {
-            _cart.addAll(_pendingTerms);
-            _pendingTerms.clear();
+          if (_inMul) {
+            // Selesaikan mulBase x qty ke cart
+            final qty = _parse(_display);
+            final base = _mulBase ?? 0;
+            if (base > 0 && qty > 0) {
+              final capped = qty.clamp(1, 999);
+              for (int i = 0; i < capped; i++) {
+                _cart.add(CartItem('Unknown item', base));
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'Added $qty × Unknown item • Rp ${formatInt(base)}')),
+              );
+            }
+            _inMul = false;
+            _mulBase = null;
             _display = '0';
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Items added to cart')),
-            );
+
+            if (_pendingTerms.isNotEmpty) {
+              _cart.addAll(_pendingTerms);
+              _pendingTerms.clear();
+            }
+          } else {
+            // perilaku lama
+            _queueCurrentAsUnknown();
+            if (_pendingTerms.isNotEmpty) {
+              _cart.addAll(_pendingTerms);
+              _pendingTerms.clear();
+              _display = '0';
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Items added to cart')),
+              );
+            }
           }
         });
         return;
@@ -216,6 +284,9 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
       // A named product is a direct add; queued terms remain as-is
       _cart.add(CartItem(p.name, p.price));
       _display = '0';
+      // keluar dari multiply jika ada
+      _inMul = false;
+      _mulBase = null;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Added ${p.name} • Rp ${formatInt(p.price)}')),
@@ -226,7 +297,7 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
   Widget build(BuildContext context) {
     final inputVal = _parse(_display);
     final matched = _products.where((p) => p.price == inputVal).toList();
-    final subtotal = _cartSubtotal; // dipakai untuk label Pay
+    final subtotal = _cartSubtotal;
 
     return Scaffold(
       bottomNavigationBar: NavigationBar(
@@ -263,10 +334,8 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                     await Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => CartScreen(
-                          items: _cart, // <-- pass the SAME list
-                          onChanged: () => setState(
-                            () {},
-                          ), // <-- parent rebuilds subtotal/Pay
+                          items: _cart,
+                          onChanged: () => setState(() {}),
                         ),
                       ),
                     );
@@ -301,11 +370,9 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                   top: false,
                   child: LayoutBuilder(
                     builder: (context, cons) {
-                      // Keep the keypad + button inside the sheet without overflow.
                       const handleAndGaps = 10.0 + 16.0 + 16.0 + 56.0 + 20.0;
                       final available = cons.maxHeight - handleAndGaps;
 
-                      // Five uniform rows of keys, each 58px high + four gaps of 8px.
                       const targetKeypad = 58.0 * 5 + 8.0 * 4;
                       final keypadH = available.clamp(270.0, targetKeypad);
 
@@ -345,17 +412,13 @@ class QuickSaleScreenState extends State<QuickSaleScreen> {
                                 padding: const EdgeInsets.only(top: 16),
                                 child: GestureDetector(
                                   onTap: subtotal > 0
-                                      ? () async =>
-                                          await Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) => CartScreen(
-                                                items:
-                                                    _cart, // pass the SAME list reference
-                                                onChanged: () =>
-                                                    setState(() {}),
-                                              ),
+                                      ? () async => await Navigator.of(context)
+                                              .push(MaterialPageRoute(
+                                            builder: (_) => CartScreen(
+                                              items: _cart,
+                                              onChanged: () => setState(() {}),
                                             ),
-                                          )
+                                          ))
                                       : null,
                                   child: Container(
                                     height: 56,
@@ -606,10 +669,9 @@ class _Keypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Softer keys to match the header
     const white = Colors.white;
-    final fn = const Color(0xFFEFF3F6); // function keys (%, /)
-    final op = const Color(0xFFDDE6EF); // right operator column
+    final fn = const Color(0xFFEFF3F6); // function keys
+    final op = const Color(0xFFDDE6EF); // operator column
     const red = AppPalette.danger;
     const gap = 8.0;
     const keyH = 58.0;
@@ -695,7 +757,7 @@ class _Keypad extends StatelessWidget {
                 label: 'X',
                 bg: op,
                 fg: Colors.black87,
-                onTap: () {},
+                onTap: () => onKey('X'), // <-- penting
               ),
             ),
             const SizedBox(height: gap),
@@ -728,7 +790,7 @@ class _Keypad extends StatelessWidget {
                 label: '=',
                 bg: op,
                 fg: Colors.black87,
-                onTap: () => onKey('='),
+                onTap: () => onKey('='), // <-- pastikan panggil onKey
               ),
             ),
           ],
